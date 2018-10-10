@@ -40,7 +40,7 @@ func (s *postgres) DataTypeOf(field *StructField) string {
 			if field.IsNeedSequence {
 				sqlType = fmt.Sprintf("INTEGER DEFAULT nextval('%s' :: REGCLASS)", s.getSequencePlaceholder(field))
 			} else if s.fieldCanAutoIncrement(field) {
-				field.TagSettings["AUTO_INCREMENT"] = "AUTO_INCREMENT"
+				field.TagSettingsSet("AUTO_INCREMENT", "AUTO_INCREMENT")
 				sqlType = "serial"
 			} else {
 				sqlType = "integer"
@@ -49,7 +49,7 @@ func (s *postgres) DataTypeOf(field *StructField) string {
 			if field.IsNeedSequence {
 				sqlType = fmt.Sprintf("BIGINT DEFAULT nextval('%s' :: REGCLASS)", s.getSequencePlaceholder(field))
 			} else if s.fieldCanAutoIncrement(field) {
-				field.TagSettings["AUTO_INCREMENT"] = "AUTO_INCREMENT"
+				field.TagSettingsSet("AUTO_INCREMENT", "AUTO_INCREMENT")
 				sqlType = "bigserial"
 			} else {
 				sqlType = "bigint"
@@ -57,7 +57,7 @@ func (s *postgres) DataTypeOf(field *StructField) string {
 		case reflect.Float32, reflect.Float64:
 			sqlType = "numeric"
 		case reflect.String:
-			if _, ok := field.TagSettings["SIZE"]; !ok {
+			if _, ok := field.TagSettingsGet("SIZE"); !ok {
 				size = 0 // if SIZE haven't been set, use `text` as the default type, as there are no performance different
 			}
 
