@@ -25,6 +25,10 @@ func (postgres) BindVar(i int) string {
 	return fmt.Sprintf("$%v", i)
 }
 
+func (s *postgres) getSequencePlaceholder(field *StructField) string {
+	return fmt.Sprintf("###TABLE_NAME###_%s_seq", field.DBName)
+}
+
 func (s *postgres) DataTypeOf(field *StructField) string {
 	var dataValue, sqlType, size, additionalType = ParseFieldStructForDialect(field, s)
 
@@ -33,14 +37,18 @@ func (s *postgres) DataTypeOf(field *StructField) string {
 		case reflect.Bool:
 			sqlType = "boolean"
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uintptr:
-			if s.fieldCanAutoIncrement(field) {
+			if field.IsNeedSequence {
+				sqlType = fmt.Sprintf("INTEGER DEFAULT nextval('%s' :: REGCLASS)", s.getSequencePlaceholder(field))
+			} else if s.fieldCanAutoIncrement(field) {
 				field.TagSettings["AUTO_INCREMENT"] = "AUTO_INCREMENT"
 				sqlType = "serial"
 			} else {
 				sqlType = "integer"
 			}
 		case reflect.Int64, reflect.Uint32, reflect.Uint64:
-			if s.fieldCanAutoIncrement(field) {
+			if field.IsNeedSequence {
+				sqlType = fmt.Sprintf("BIGINT DEFAULT nextval('%s' :: REGCLASS)", s.getSequencePlaceholder(field))
+			} else if s.fieldCanAutoIncrement(field) {
 				field.TagSettings["AUTO_INCREMENT"] = "AUTO_INCREMENT"
 				sqlType = "bigserial"
 			} else {

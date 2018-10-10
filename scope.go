@@ -1140,6 +1140,8 @@ func (scope *Scope) createJoinTable(field *StructField) {
 func (scope *Scope) createTable() *Scope {
 	var tags []string
 	var primaryKeys []string
+	var sequences []string
+	var alterSequences []string
 	var primaryKeyInColumnType = false
 	for _, field := range scope.GetModelStruct().StructFields {
 		if field.IsNormal {
@@ -1150,6 +1152,11 @@ func (scope *Scope) createTable() *Scope {
 			// one column as the primary key.
 			if strings.Contains(strings.ToLower(sqlTag), "primary key") {
 				primaryKeyInColumnType = true
+			}
+			if field.IsNeedSequence && scope.canCreateSequence() {
+				sequences = append(sequences, scope.createSequence(field))
+				alterSequences = append(alterSequences, scope.ownedSequence(field))
+				sqlTag = strings.Replace(sqlTag, "###TABLE_NAME###", scope.TableName(), -1)
 			}
 
 			tags = append(tags, scope.Quote(field.DBName)+" "+sqlTag)
@@ -1165,11 +1172,35 @@ func (scope *Scope) createTable() *Scope {
 	if len(primaryKeys) > 0 && !primaryKeyInColumnType {
 		primaryKeyStr = fmt.Sprintf(", PRIMARY KEY (%v)", strings.Join(primaryKeys, ","))
 	}
+	for _, sequenceQuery := range sequences {
+		scope.db.Exec(sequenceQuery)
+	}
 
 	scope.Raw(fmt.Sprintf("CREATE TABLE %v (%v %v)%s", scope.QuotedTableName(), strings.Join(tags, ","), primaryKeyStr, scope.getTableOptions())).Exec()
 
 	scope.autoIndex()
+	for _, sequenceQuery := range alterSequences {
+		scope.db.Exec(sequenceQuery)
+	}
 	return scope
+}
+
+func (scope *Scope) canCreateSequence () bool {
+	return scope.Dialect().GetName() == "postgres"
+}
+
+func (scope *Scope) createSequence(field *StructField) string {
+	return fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s",
+		scope.Dialect().Quote(fmt.Sprintf("%s_%s_seq", scope.TableName(), field.DBName)),
+	)
+}
+
+func (scope *Scope) ownedSequence(field *StructField) string {
+	return fmt.Sprintf("ALTER SEQUENCE IF EXISTS %s  OWNED BY %s.%s",
+		scope.Dialect().Quote(fmt.Sprintf("%s_%s_seq", scope.TableName(), field.DBName)),
+		scope.TableName(),
+		field.DBName,
+	)
 }
 
 func (scope *Scope) dropTable() *Scope {

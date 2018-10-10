@@ -72,6 +72,7 @@ type StructField struct {
 	Name            string
 	Names           []string
 	IsPrimaryKey    bool
+	IsNeedSequence  bool
 	IsNormal        bool
 	IsIgnored       bool
 	IsScanner       bool
@@ -89,6 +90,7 @@ func (structField *StructField) clone() *StructField {
 		Name:            structField.Name,
 		Names:           structField.Names,
 		IsPrimaryKey:    structField.IsPrimaryKey,
+		IsNeedSequence:  structField.IsNeedSequence,
 		IsNormal:        structField.IsNormal,
 		IsIgnored:       structField.IsIgnored,
 		IsScanner:       structField.IsScanner,
@@ -176,6 +178,9 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 				if _, ok := field.TagSettings["PRIMARY_KEY"]; ok {
 					field.IsPrimaryKey = true
 					modelStruct.PrimaryFields = append(modelStruct.PrimaryFields, field)
+				}
+				if value, ok := field.TagSettings["NEXT_SEQUENCE"]; ok {
+					field.IsNeedSequence = strings.ToLower(value) != "false"
 				}
 
 				if _, ok := field.TagSettings["DEFAULT"]; ok {
